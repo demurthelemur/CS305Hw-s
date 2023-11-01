@@ -1,0 +1,142 @@
+%{
+int line = 1;
+int flag = 0;
+%}
+%x comment
+
+%%
+
+"\n" line++;
+
+"/*"	{BEGIN(comment);}
+<comment>"/*" {flag++;}
+<comment>"*/" {if(flag==0){BEGIN(INITIAL);} else{flag--;}}
+<comment>\n  {line++;}
+<comment>[^*\n]   {}
+<comment>"*"    {}
+
+"//".+;
+
+Mail              printf("%d_tMAIL\n",line);
+end[ \t]+Mail     printf("%d_tENDMAIL\n",line);
+send              printf("%d_tSEND\n",line);
+from              printf("%d_tFROM\n",line);
+schedule          printf("%d_tSCHEDULE\n",line);
+end[ \t]+schedule printf("%d_tENDSCHEDULE\n",line);
+to                printf("%d_tTO\n",line);
+set               printf("%d_tSET\n",line);
+
+","               printf("%d_tCOMMA\n",line);
+":"               printf("%d_tCOLON\n",line);
+"("               printf("%d_tLPR\n",line);
+")"               printf("%d_tRPR\n",line);
+"["               printf("%d_tLBR\n",line);
+"]"               printf("%d_tRBR\n",line);
+"@"               printf("%d_tAT\n",line);
+
+[a-zA-Z_][a-zA-Z0-9_]*                                                   printf("%d_tIDENT_(%s)\n",line, yytext);
+[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+      printf("%d_tADDRESS_(%s)\n",line, yytext);
+
+([0-3][0-9])\/(0[1-9]|1[0-2])\/([1-2][0-9][0-9][0-9])     {
+    char *day, *month, *year;
+
+    char *token = strtok(yytext, "/");
+    if (token != NULL) {
+        day = token;
+        token = strtok(NULL, "/");
+        if (token != NULL) {
+            month = token;
+            token = strtok(NULL, "/");
+            if (token != NULL) {
+                year = token;
+                printf("%d_tDATE_(Day_%s_Month_%s_Year_%s)\n",line, day, month, year);
+            }
+        }
+    }
+}
+
+([0-3][0-9])-(0[1-9]|1[0-2])-([1-2][0-9][0-9][0-9])  {
+    char *day, *month, *year;
+
+    char *token = strtok(yytext, "-");
+    if (token != NULL) {
+        day = token;
+        token = strtok(NULL, "-");
+        if (token != NULL) {
+            month = token;
+            token = strtok(NULL, "-");
+            if (token != NULL) {
+                year = token;
+                printf("%d_tDATE_(Day_%s_Month_%s_Year_%s)\n",line, day, month, year);
+            }
+        }
+    } 
+}
+
+([0-3][0-9]).(0[1-9]|1[0-2]).([1-2][0-9][0-9][0-9])   {
+    char *day, *month, *year;
+
+    char *token = strtok(yytext, ".");
+    if (token != NULL) {
+        day = token;
+        token = strtok(NULL, ".");
+        if (token != NULL) {
+            month = token;
+            token = strtok(NULL, ".");
+            if (token != NULL) {
+                year = token;
+                printf("%d_tDATE_(Day_%s_Month_%s_Year_%s)\n",line, day, month, year);
+            }
+        }
+    } 
+}
+
+\"(\\\"|[^"])*\" {
+    int len = yyleng;
+    int tempLine = line;
+    char* string_content = yytext;
+    string_content[0] = ' ';
+    int i, j = 0;
+    
+    for (i = 0; i < len; i++) {
+        if (string_content[i] == '\n') {
+            line++;
+        }
+        if (string_content[i] != ' ' && string_content[i] != '\t') {
+            break;
+        }
+    }
+
+    for (; i < len; i++, j++) {
+        if (string_content[i] == '\n') {
+            line++;
+        }
+        string_content[j] = string_content[i];
+    }
+    string_content[len - 2] = '\0'; 
+    printf("%d_tSTRING_(%s)\n",tempLine, yytext);
+}
+
+([0-9][0-9]):([0-9][0-9])  {
+   char *hour, *minute;
+   char *delimiter = strchr(yytext, ':');
+  
+    if (delimiter != NULL) {
+        *delimiter = '\0';
+        hour = yytext;
+        minute = delimiter + 1;
+        printf("%d_tTIME_(Hour_%s_Minute_%s)\n",line, hour, minute);
+    }
+} 
+
+
+
+
+. printf("");
+%%
+
+int main()
+{
+    yylex();
+    return 0;
+}
